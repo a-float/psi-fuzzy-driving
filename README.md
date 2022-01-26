@@ -5,13 +5,19 @@ Fuzzy logic implemented via SciKit-Fuzzy package.
 
 Cars try to stay in the middle of the road, slow down while turning and try to reverse when they face a wall.
 
-Driver inputs:
+### Driver inputs:
   - current vehicle speed
   - current vehicle angular velocity
   - distance to the nearest obstacle to the left of the vehicle
   - distance to the nearest obstacle in front of the vehicle
   - distance to the nearest obstacle to the right of the vehicle
   
-Driver outputs:
+### Driver outputs:
   - vehicle acceleration
   - vehicle angular acceleration
+
+### Usage
+```
+pip install -r requirements.txt
+python main.py
+```
