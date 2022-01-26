@@ -1,8 +1,9 @@
+# the actual fuzzy logic
+
 import skfuzzy as fuzz
 import numpy as np
 from skfuzzy import control as ctrl
 from config import *
-import matplotlib.pyplot as plt
 
 MAX_STEER_DEG = int(np.rad2deg(MAX_STEER))
 MAX_ACC = 2
@@ -16,11 +17,12 @@ acc = ctrl.Consequent(np.arange(-MAX_ACC, MAX_ACC, 0.01), 'acc')
 ang_acc = ctrl.Consequent(np.arange(-1, 1, 0.01), 'ang_acc')
 
 for dist in [left, front, right]:
-    dist['close'] = fuzz.trimf(dist.universe, [0, 0, 70])
+    dist['close'] = fuzz.trimf(dist.universe, [0, 0, 80])
     dist['medium'] = fuzz.gaussmf(dist.universe, 100, 15)
     dist['far'] = fuzz.trapmf(dist.universe, [100, 170, MAX_DIST, MAX_DIST])
 
 vel['back'] = fuzz.trimf(vel.universe, [MAX_REV_SPEED, MAX_REV_SPEED, 0])
+vel['stop'] = fuzz.trimf(vel.universe, [-0.01, 0, 0.01])
 vel['slow'] = fuzz.trimf(vel.universe, [0, 1, 2.5])
 vel['medium'] = fuzz.trimf(vel.universe, [1, 3, 4])
 vel['fast'] = fuzz.trapmf(vel.universe, [2.5, 6, 7, 7])
@@ -39,14 +41,6 @@ ang_acc['light_left'] = fuzz.gaussmf(ang_acc.universe, -0.5, 0.125)
 ang_acc['none'] = fuzz.gaussmf(ang_acc.universe, 0, 0.125)
 ang_acc['light_right'] = fuzz.gaussmf(ang_acc.universe, 0.5, 0.125)
 ang_acc['right'] = fuzz.gaussmf(ang_acc.universe, 1, 0.125)
-# vel.view()
-# ang_vel.view()
-# left.view()
-# front.view()
-# right.view()
-# acc.view()
-# ang_acc.view()
-# plt.show()
 
 # rules
 rules = [
@@ -63,15 +57,24 @@ rules = [
     ctrl.Rule(front['far'] & ang_vel['none'], ang_acc['none']),
     ctrl.Rule(front['far'] & ang_vel['left'], ang_acc['light_right']),
     ctrl.Rule(front['far'] & ang_vel['right'], ang_acc['light_left']),
+
+    # turn if front is getting close
+    ctrl.Rule(front['close'] & right['close'] & ~left['close'], ang_acc['left']),
+    ctrl.Rule(vel['stop'] & front['close'] & right['close'] & ~left['close'], acc['light_front']),
+    ctrl.Rule(~vel['back'] & ~vel['stop'] & front['close'] & right['close'] & ~left['close'], acc['none']),
+    ctrl.Rule(front['close'] & ~right['close'] & left['close'], ang_acc['right']),
+    ctrl.Rule(vel['stop'] & front['close'] & ~right['close'] & left['close'], acc['light_front']),
+    ctrl.Rule(~vel['back'] & ~vel['stop'] & front['close'] & ~right['close'] & left['close'], acc['none']),
+
+    # medium turning
     ctrl.Rule(front['medium'] & ~left['far'] & ~right['far'] & ang_vel['none'], ang_acc['none']),
     ctrl.Rule(front['medium'] & ~left['far'] & ~right['far'] & ang_vel['left'], ang_acc['light_right']),
     ctrl.Rule(front['medium'] & ~left['far'] & ~right['far'] & ang_vel['right'], ang_acc['light_left']),
 
-    # turn if front is getting close
+    # far turning
     ctrl.Rule(~front['far'] & right['far'] & ~left['far'], ang_acc['light_right']),
     ctrl.Rule(~front['far'] & left['far'] & ~right['far'], ang_acc['light_left']),
-    ctrl.Rule(front['close'] & right['close'] & ~left['close'], ang_acc['left']),
-    ctrl.Rule(front['close'] & ~right['close'] & left['close'], ang_acc['right']),
+    ctrl.Rule(~front['far'] & left['far'] & right['far'], ang_acc['light_right']),  # prefer right
 
     ctrl.Rule(ang_vel['left'] & ~vel['back'] & left['close'], ang_acc['light_right']),
     ctrl.Rule(ang_vel['right'] & ~vel['back'] & right['close'], ang_acc['light_left']),
@@ -82,7 +85,7 @@ rules = [
     ctrl.Rule(vel['slow'] & front['far'], acc['front']),
     ctrl.Rule(vel['slow'] & front['close'], acc['none']),
     ctrl.Rule(vel['medium'] & ~front['far'], acc['none']),
-    ctrl.Rule(vel['fast'] & ~front['far'], ang_acc['none']),
+    ctrl.Rule(vel['fast'] & ~front['far'], acc['none']),
 
     # if empty road ahead, stop turning
     ctrl.Rule(~front['close'] & ang_vel['left'], ang_acc['light_right']),
@@ -97,6 +100,9 @@ rules = [
     ctrl.Rule(vel['back'] & front['medium'] & left['medium'] & right['medium'], acc['back']),
     ctrl.Rule(vel['back'] & front['medium'] & right['medium'] & left['medium'] & ang_vel['left'], ang_acc['right']),
     ctrl.Rule(vel['back'] & front['medium'] & right['medium'] & left['medium'] & ang_vel['right'], ang_acc['left']),
+
+    # never stop yo
+    ctrl.Rule(vel['stop'], acc['light_front'])
 ]
 
 # controls

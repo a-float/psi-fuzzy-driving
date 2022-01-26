@@ -1,3 +1,6 @@
+# car physics and ray-cast collision
+import sys
+
 import numpy as np
 from math import pi as pi
 from driver import driver
@@ -28,12 +31,18 @@ class Car:
         driver.input['vel'] = self._speed
         driver.input['ang_vel'] = np.rad2deg(self._ang_vel)
 
-        print(driver.input)
+        # print(driver.input)
+        try:
+            driver.compute()
+        except ValueError as e:
+            print("Error:")
+            print(str(e))
+            print(f"on input:\n{driver.input}")
+            sys.exit(1)
 
-        driver.compute()
         self.acc = driver.output['acc']
-        self.ang_acc = np.deg2rad(driver.output['ang_acc'])*3
-        print(f"Driver says acc={self.acc} ang_acc={self.ang_acc}")
+        self.ang_acc = np.deg2rad(driver.output['ang_acc']) * 3
+        # print(f"Driver says acc={self.acc} ang_acc={self.ang_acc}")
         self.move()
 
     def respawn(self, pos):
@@ -71,13 +80,13 @@ class Car:
                 # ray hits the condition
                 if MAP[row][col] == '#':
                     # highlight wall that has been hit by a casted ray
-                    pygame.draw.rect(win, (0, 255, 0), (col * TILE_SIZE+1,
-                                                        row * TILE_SIZE+1,
+                    pygame.draw.rect(win, (0, 225, 0), (col * TILE_SIZE + 1,
+                                                        row * TILE_SIZE + 1,
                                                         TILE_SIZE - 2,
                                                         TILE_SIZE - 2))
 
                     # draw casted ray
-                    pygame.draw.line(win, (255, 255, 0), (self.x, self.y), (target_x, target_y))
+                    pygame.draw.line(win, (205, 205, 0), (self.x, self.y), (target_x, target_y))
 
                     # get the precise distance to the wall
                     p1 = ((self.x, self.y), (target_x, target_y))  # ray
